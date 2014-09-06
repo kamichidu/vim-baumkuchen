@@ -1,0 +1,6 @@
+language: ruby
+rvm:
+    - 2.0.0
+before_script:
+  - git clone https://github.com/thinca/vim-themis themis
+script: rake ci

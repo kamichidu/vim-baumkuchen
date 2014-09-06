@@ -1,6 +1,6 @@
 "
 " Author: kamichidu
-" Last Change: 07-Dec-2013.
+" Last Change: 06-Sep-2014.
 " Lisence: The MIT License (MIT)
 " 
 " Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -29,64 +29,91 @@ let s:prototype= {
 \   '_keys':        [],
 \   '_values':      [],
 \   '_assignments': [],
+\   '_skips':       [],
 \}
 
-function! baumkuchen#of(config)
-    let l:obj= deepcopy(s:prototype)
+function! baumkuchen#of(...)
+    let config= get(a:000, 0, {})
+    let obj= deepcopy(s:prototype)
 
-    let l:obj._ranges=      get(a:config, 'ranges', [])
-    let l:obj._keys=        get(a:config, 'keys', [])
-    let l:obj._values=      get(a:config, 'values', [])
-    let l:obj._assignments= get(a:config, 'assignments', [])
+    let obj._ranges=      get(config, 'ranges', [])
+    let obj._keys=        get(config, 'keys', [])
+    let obj._values=      get(config, 'values', [])
+    let obj._assignments= get(config, 'assignments', [])
+    let obj._skips=       get(config, 'skips', [])
 
-    return l:obj
+    return obj
 endfunction
 
-function! s:prototype.ranges()
-    return deepcopy(self._ranges)
+function! s:prototype.ranges(...)
+    if a:0 == 0
+        return deepcopy(self._ranges)
+    else
+        let self._ranges= deepcopy(a:1)
+    endif
 endfunction
 
-function! s:prototype.keys()
-    return deepcopy(self._keys)
+function! s:prototype.keys(...)
+    if a:0 == 0
+        return deepcopy(self._keys)
+    else
+        let self._keys= deepcopy(a:1)
+    endif
 endfunction
 
-function! s:prototype.values()
-    return deepcopy(self._values)
+function! s:prototype.values(...)
+    if a:0 == 0
+        return deepcopy(self._values)
+    else
+        let self._values= deepcopy(a:1)
+    endif
 endfunction
 
-function! s:prototype.assignments()
-    return deepcopy(self._assignments)
+function! s:prototype.assignments(...)
+    if a:0 == 0
+        return deepcopy(self._assignments)
+    else
+        let self._assignments= deepcopy(a:1)
+    endif
 endfunction
 
-function! s:prototype.map(expr)
-    let l:pattern= self._make_pattern()
-    let l:result= {}
+function! s:prototype.skips(...)
+    if a:0 == 0
+        return deepcopy(self._skips)
+    else
+        let self._skips= deepcopy(a:1)
+    endif
+endfunction
 
-    for l:range in self.ranges()
-        let l:lines= getbufline(a:expr, l:range[0], l:range[1])
-        let l:founds= filter(l:lines, 'v:val =~# ''' . l:pattern . '''')
+function! s:prototype.map(...)
+    let expr= get(a:000, 0, '%')
+    let pattern= self.make_pattern()
+    let lines= getbufline(expr, 1, '$')
+    let result= {}
 
-        for l:found in l:founds
-            let l:list= matchlist(l:found, l:pattern)
-            let [l:key, l:value]= [l:list[1], l:list[3]]
-
-            let l:result[l:key]= l:value
+    for range in self.ranges()
+        let from_idx= range[0] >= 0 ? range[0] - 1 : range[0]
+        let to_idx=   range[1] >= 0 ? range[1] - 1 : range[1]
+        " linenr to index
+        for line in lines[from_idx : to_idx]
+            let list= matchlist(line, pattern)
+            if !empty(list)
+                let result[list[1]]= list[2]
+            endif
         endfor
     endfor
 
-    return l:result
+    return result
 endfunction
 
-function! s:prototype._make_pattern()
-    let l:result= ''
+function! s:prototype.make_pattern()
+    let skip=   '\%(' . join(self._skips, '\|') . '\)*'
+    let key=    '\(' . join(self._keys, '\|') . '\)'
+    let assign= '\%(' . join(self._assignments, '\|') . '\)'
+    let value=  '\(' . join(self._values, '\|') . '\)'
 
-    let l:result.= '\(' . join(self.keys(), '\|') . '\)'
-    let l:result.= '\(' . join(self.assignments(), '\|') . '\)'
-    let l:result.= '\(' . join(self.values(), '\|') . '\)'
-
-    return l:result
+    return '\m' . skip . key . skip . assign . skip . value
 endfunction
 
 let &cpo= s:save_cpo
 unlet s:save_cpo
-
